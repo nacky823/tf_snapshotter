@@ -3,6 +3,7 @@ tf_snapshotter:
     map_frame: map
     base_frame: base_link
     target_frame: target_frame
-    nav_state_topic: target_tracker/nav_state
     detector_state_topic: state/detector
     broadcast_rate_hz: 10.0
+    finish_hold_sec: 1.0
+    stop_delay_sec: 0.5
