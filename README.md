@@ -11,6 +11,9 @@ colcon build --symlink-install --packages-select tf_snapshotter
 Run with params(ex.):
 
 ```bash
+ros2 run tf_snapshotter tf_snapshotter_node
+```
+```bash
 ros2 run tf_snapshotter tf_snapshotter_node --ros-args --params-file $HOME/rdd_ws/src/tf_snapshotter/config/tf_snapshotter.yaml
 ```
 
