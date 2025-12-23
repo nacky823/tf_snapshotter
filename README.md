@@ -23,7 +23,7 @@ Capture home:
 ros2 service call /snapshot std_srvs/srv/Trigger "{}"
 ```
 
-Verify behavior:
+Verify behavior(not required):
 
 ```bash
 ros2 run tf2_ros tf2_echo map target_frame
