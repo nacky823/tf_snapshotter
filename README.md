@@ -29,17 +29,14 @@ Verify behavior(not required):
 ros2 run tf2_ros tf2_echo map target_frame
 ```
 
-Publish condition topics (both must be true):
+Publish condition topic (FINISH must be held for a while):
 
-```bash
-ros2 topic pub -r 10 /target_tracker/nav_state std_msgs/msg/String "{data: finish}"
-```
 ```bash
 ros2 topic pub -r 10 /state/detector std_msgs/msg/String "{data: FINISH}"
 ```
 
-Stop condition (either topic changes):
+Stop condition (FINISH breaks for a while):
 
 ```bash
-ros2 topic pub /target_tracker/nav_state std_msgs/msg/String "{data: running}" -1
+ros2 topic pub -r 10 /state/detector std_msgs/msg/String "{data: RUNNING}"
 ```
