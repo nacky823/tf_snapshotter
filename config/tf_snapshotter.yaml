@@ -1,0 +1,8 @@
+tf_snapshotter:
+  ros__parameters:
+    map_frame: map
+    base_frame: base_link
+    target_frame: target_frame
+    nav_state_topic: target_tracker/nav_state
+    detector_state_topic: state/detector
+    broadcast_rate_hz: 10.0
