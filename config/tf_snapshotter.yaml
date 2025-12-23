@@ -5,5 +5,5 @@ tf_snapshotter:
     target_frame: target_frame
     detector_state_topic: state/detector
     broadcast_rate_hz: 10.0
-    finish_hold_sec: 1.0
+    finish_hold_sec: 6.0
     stop_delay_sec: 0.5
