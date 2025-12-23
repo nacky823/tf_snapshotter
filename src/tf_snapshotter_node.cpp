@@ -87,18 +87,18 @@ private:
       return;
     }
     const auto now = this->get_clock()->now();
+    bool should_broadcast = false;
 
     if (detector_state_ == "FINISH") {
       if (!broadcast_active_) {
         if (finish_start_set_ &&
           (now - finish_start_time_).seconds() >= finish_hold_sec_) {
           broadcast_active_ = true;
+          finish_end_set_ = false;
           RCLCPP_INFO(this->get_logger(), "Broadcast started after FINISH hold.");
         }
       }
-      if (!broadcast_active_) {
-        return;
-      }
+      should_broadcast = broadcast_active_;
     } else {
       if (broadcast_active_) {
         if (finish_end_set_ &&
@@ -106,7 +106,11 @@ private:
           broadcast_active_ = false;
           RCLCPP_INFO(this->get_logger(), "Broadcast stopped after FINISH gap.");
         }
+        should_broadcast = broadcast_active_;
       }
+    }
+
+    if (!should_broadcast) {
       return;
     }
 
@@ -126,6 +130,7 @@ private:
         finish_start_time_ = now;
         finish_start_set_ = true;
       }
+      finish_end_set_ = false;
     } else {
       if (detector_state_ == "FINISH") {
         finish_end_time_ = now;
