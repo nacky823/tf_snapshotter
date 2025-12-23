@@ -23,18 +23,15 @@ public:
     map_frame_ = this->declare_parameter<std::string>("map_frame", "map");
     base_frame_ = this->declare_parameter<std::string>("base_frame", "base_link");
     target_frame_ = this->declare_parameter<std::string>("target_frame", "target_frame");
-    nav_state_topic_ = this->declare_parameter<std::string>(
-      "nav_state_topic", "target_tracker/nav_state");
     detector_state_topic_ = this->declare_parameter<std::string>(
       "detector_state_topic", "state/detector");
     broadcast_rate_hz_ = this->declare_parameter<double>("broadcast_rate_hz", 10.0);
+    finish_hold_sec_ = this->declare_parameter<double>("finish_hold_sec", 1.0);
+    stop_delay_sec_ = this->declare_parameter<double>("stop_delay_sec", 0.5);
 
-    nav_state_sub_ = this->create_subscription<std_msgs::msg::String>(
-      nav_state_topic_, rclcpp::QoS(10),
-      [this](const std_msgs::msg::String::SharedPtr msg) { nav_state_ = msg->data; });
     detector_state_sub_ = this->create_subscription<std_msgs::msg::String>(
       detector_state_topic_, rclcpp::QoS(10),
-      [this](const std_msgs::msg::String::SharedPtr msg) { detector_state_ = msg->data; });
+      [this](const std_msgs::msg::String::SharedPtr msg) { this->on_detector_state(msg); });
 
     snapshot_srv_ = this->create_service<std_srvs::srv::Trigger>(
       "snapshot",
@@ -48,6 +45,9 @@ public:
     timer_ = this->create_wall_timer(
       std::chrono::duration_cast<std::chrono::nanoseconds>(period),
       [this]() { this->on_timer(); });
+
+    finish_start_time_ = rclcpp::Time(0, 0, this->get_clock()->get_clock_type());
+    finish_end_time_ = rclcpp::Time(0, 0, this->get_clock()->get_clock_type());
   }
 
 private:
@@ -86,19 +86,55 @@ private:
     if (!home_ready_) {
       return;
     }
-    if (nav_state_ != "finish" || detector_state_ != "FINISH") {
+    const auto now = this->get_clock()->now();
+
+    if (detector_state_ == "FINISH") {
+      if (!broadcast_active_) {
+        if (finish_start_set_ &&
+          (now - finish_start_time_).seconds() >= finish_hold_sec_) {
+          broadcast_active_ = true;
+          RCLCPP_INFO(this->get_logger(), "Broadcast started after FINISH hold.");
+        }
+      }
+      if (!broadcast_active_) {
+        return;
+      }
+    } else {
+      if (broadcast_active_) {
+        if (finish_end_set_ &&
+          (now - finish_end_time_).seconds() >= stop_delay_sec_) {
+          broadcast_active_ = false;
+          RCLCPP_INFO(this->get_logger(), "Broadcast stopped after FINISH gap.");
+        }
+      }
       return;
     }
 
     geometry_msgs::msg::TransformStamped msg;
-    msg.header.stamp = this->get_clock()->now();
+    msg.header.stamp = now;
     msg.header.frame_id = map_frame_;
     msg.child_frame_id = target_frame_;
     msg.transform = home_transform_;
     tf_broadcaster_.sendTransform(msg);
   }
 
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr nav_state_sub_;
+  void on_detector_state(const std_msgs::msg::String::SharedPtr msg)
+  {
+    const auto now = this->get_clock()->now();
+    if (msg->data == "FINISH") {
+      if (detector_state_ != "FINISH") {
+        finish_start_time_ = now;
+        finish_start_set_ = true;
+      }
+    } else {
+      if (detector_state_ == "FINISH") {
+        finish_end_time_ = now;
+        finish_end_set_ = true;
+      }
+    }
+    detector_state_ = msg->data;
+  }
+
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr detector_state_sub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr snapshot_srv_;
   rclcpp::TimerBase::SharedPtr timer_;
@@ -110,14 +146,19 @@ private:
   std::string map_frame_;
   std::string base_frame_;
   std::string target_frame_;
-  std::string nav_state_topic_;
   std::string detector_state_topic_;
-  std::string nav_state_;
   std::string detector_state_;
   double broadcast_rate_hz_{10.0};
+  double finish_hold_sec_{1.0};
+  double stop_delay_sec_{0.5};
 
   bool home_ready_{false};
   geometry_msgs::msg::Transform home_transform_;
+  bool broadcast_active_{false};
+  rclcpp::Time finish_start_time_;
+  rclcpp::Time finish_end_time_;
+  bool finish_start_set_{false};
+  bool finish_end_set_{false};
 };
 
 int main(int argc, char * argv[])
